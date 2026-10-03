@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RepoGuard — Security Assessment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0e14;
+    --bg-2: #0d1119;
+    --surface: #11151d;
+    --surface-2: #151a24;
+    --border: #1f2633;
+    --border-strong: #2c3546;
+    --ink: #e8ebf2;
+    --muted: #8b95a8;
+    --accent: #5b8def;
+    --accent-2: #3fb8a0;
+    --risk-high: #e5534b;
+    --risk-high-bg: rgba(229,83,75,0.12);
+    --risk-medium: #d9a441;
+    --risk-medium-bg: rgba(217,164,65,0.12);
+    --risk-low: #3fb8a0;
+    --risk-low-bg: rgba(63,184,160,0.12);
+    --serif: 'Source Serif 4', Georgia, serif;
+    --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: max(32px, env(safe-area-inset-top, 0px)) 20px max(40px, env(safe-area-inset-bottom, 0px));
+    position: relative;
+  }
+
+  .wrap { max-width: 760px; margin: 0 auto; position: relative; z-index: 1; }
+
+  /* masthead */
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 20px;
+    margin-bottom: 8px;
+  }
+  .mark { flex-shrink: 0; }
+  .masthead-text h1 {
+    font-family: var(--serif);
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--ink);
+  }
+  .masthead-text p {
+    margin: 2px 0 0;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  /* hero */
+  .hero {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    padding: 20px 0 36px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .hero-text { flex: 1.3; }
+  .hero h2 {
+    font-family: var(--serif);
+    font-size: clamp(1.6rem, 4.2vw, 2.1rem);
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--ink);
+    margin: 0 0 12px;
+  }
+  .hero p {
+    font-size: 0.95rem;
+    color: var(--muted);
+    line-height: 1.65;
+    margin: 0 0 18px;
+    max-width: 440px;
+  }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: var(--ink);
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    padding: 5px 11px;
+    border-radius: 20px;
+  }
+
+  /* animated network graph hero graphic */
+  .hero-graphic { flex: 1; min-width: 180px; max-width: 220px; }
+  .hero-graphic svg { width: 100%; height: auto; overflow: visible; }
+  .graph-line {
+    stroke: url(#lineGrad);
+    stroke-width: 1.2;
+    fill: none;
+    opacity: 0.5;
+  }
+  .graph-pulse {
+    stroke: var(--accent-2);
+    stroke-width: 2;
+    fill: none;
+    stroke-linecap: round;
+  }
+  .graph-node { fill: var(--surface-2); stroke: var(--border-strong); stroke-width: 1.2; }
+  .graph-node.core { fill: var(--surface-2); stroke: var(--accent); stroke-width: 1.6; }
+  .graph-node-glow { fill: var(--accent); opacity: 0; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .pulse-1 { animation: travel1 3.2s ease-in-out infinite; }
+    .pulse-2 { animation: travel2 3.6s ease-in-out infinite 0.6s; }
+    .pulse-3 { animation: travel3 2.8s ease-in-out infinite 1.3s; }
+    .glow-1 { animation: nodeglow 3.2s ease-in-out infinite; }
+    .glow-2 { animation: nodeglow 3.6s ease-in-out infinite 0.6s; }
+    .glow-3 { animation: nodeglow 2.8s ease-in-out infinite 1.3s; }
+    .core-pulse { animation: coreglow 2.4s ease-in-out infinite; }
+  }
+
+  @keyframes travel1 { 0% { stroke-dashoffset: 60; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+  @keyframes travel2 { 0% { stroke-dashoffset: 70; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+  @keyframes travel3 { 0% { stroke-dashoffset: 50; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+  @keyframes nodeglow { 0%, 100% { opacity: 0; r: 5; } 50% { opacity: 0.35; r: 11; } }
+  @keyframes coreglow { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.6; } }
+
+  /* tabs */
+  .tablist {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .tab {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 0.88rem;
+    font-weight: 500;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .tabpanel { display: none; }
+  .tabpanel.active { display: block; }
+
+  /* how-it-works tab content */
+  .steps { display: flex; gap: 0; }
+  .step { flex: 1; position: relative; padding-right: 16px; }
+  .step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: 13px;
+    left: calc(100% - 10px);
+    width: calc(100% - 6px);
+    height: 1px;
+    background: var(--border-strong);
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.74rem;
+    font-weight: 700;
+    font-family: var(--mono);
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+  }
+  .step h3 { font-size: 0.9rem; font-weight: 600; margin: 0 0 4px; color: var(--ink); }
+  .step p { font-size: 0.8rem; color: var(--muted); margin: 0; line-height: 1.55; }
+
+  .methodology p, .methodology li { font-size: 0.9rem; color: var(--muted); line-height: 1.7; }
+  .methodology h3 { font-size: 0.95rem; color: var(--ink); margin: 20px 0 8px; }
+  .methodology h3:first-child { margin-top: 0; }
+
+  /* panels */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 20px;
+    transition: border-color 0.2s ease;
+  }
+
+  label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--muted); margin-bottom: 7px; }
+  .input-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  input[type=text] {
+    flex: 1;
+    min-width: 220px;
+    padding: 11px 13px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    color: var(--ink);
+    background: var(--bg-2);
+  }
+  input[type=text]::placeholder { color: var(--muted); }
+  input[type=text]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+
+  .run-btn {
+    background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: 6px;
+    padding: 11px 20px; font-family: var(--sans); font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: background 0.15s ease;
+  }
+  .run-btn:hover { background: #4a7bde; }
+  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  .run-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .scope-note { margin-top: 10px; font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+
+  .progress-wrap { margin-top: 18px; display: none; }
+  .progress-wrap.active { display: block; }
+  .progress-track { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.5s ease; }
+  .progress-label { margin-top: 8px; font-size: 0.78rem; color: var(--muted); }
+
+  .error-note {
+    margin-top: 14px;
+    padding: 11px 14px;
+    background: var(--risk-high-bg);
+    border: 1px solid rgba(229,83,75,0.3);
+    color: var(--risk-high);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    display: none;
+  }
+  .error-note.active { display: block; }
+
+  .demo-note { display: none; margin-bottom: 16px; padding: 11px 14px; background: var(--risk-medium-bg); border: 1px solid rgba(217,164,65,0.35); color: var(--risk-medium); border-radius: 6px; font-size: 0.84rem; line-height: 1.5; }
+  .demo-note.active { display: block; }
+  .link-btn { background: none; border: none; padding: 0; color: var(--accent-2); font: inherit; cursor: pointer; text-decoration: underline; }
+  .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .results { display: none; }
+  .results.active { display: block; }
+
+
+  .section-title { font-family: var(--serif); font-size: 1.05rem; font-weight: 600; color: var(--ink); margin: 0 0 10px; }
+  .summary-text { font-size: 0.94rem; line-height: 1.65; color: var(--ink); }
+
+  /* findings sub-tabs */
+  .subtabs { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
+  .subtab {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 6px 13px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .subtab:hover { color: var(--ink); }
+  .subtab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .subtab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .finding-row { border-bottom: 1px solid var(--border); padding: 14px 0; cursor: pointer; }
+  .finding-row:last-child { border-bottom: none; }
+  .finding-top { display: flex; align-items: center; gap: 12px; }
+  .severity-pill { font-size: 0.7rem; font-weight: 600; padding: 3px 9px; border-radius: 4px; flex-shrink: 0; }
+  .severity-pill.high { background: var(--risk-high-bg); color: var(--risk-high); }
+  .severity-pill.medium { background: var(--risk-medium-bg); color: var(--risk-medium); }
+  .severity-pill.low { background: var(--risk-low-bg); color: var(--risk-low); }
+  .finding-title { flex: 1; font-size: 0.92rem; font-weight: 500; color: var(--ink); }
+  .finding-chevron { color: var(--muted); font-size: 0.8rem; transition: transform 0.2s ease; flex-shrink: 0; }
+  .finding-row.open .finding-chevron { transform: rotate(90deg); }
+  .finding-detail { max-height: 0; overflow: hidden; transition: max-height 0.22s ease; }
+  .finding-row.open .finding-detail { max-height: 480px; }
+  .finding-detail-inner { padding: 10px 0 2px 0; font-size: 0.86rem; color: var(--muted); line-height: 1.6; }
+  .finding-detail-inner .file { font-family: var(--mono); font-size: 0.78rem; color: var(--accent-2); margin-bottom: 6px; }
+  .finding-detail-inner .fix { margin-top: 8px; color: var(--ink); }
+  .finding-detail-inner .fix b { color: var(--accent-2); }
+
+  .clean-state { text-align: center; padding: 20px; color: var(--risk-low); font-size: 0.92rem; }
+
+  footer {
+    margin-top: 36px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.76rem;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+
+
+  /* 3D hero stage */
+  .hero { display: block; }
+  .stage { position: relative; height: 340px; margin-top: 26px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    background: #0d111a; }
+  .stage canvas { display: block; width: 100%; height: 100%; }
+  .stage-cap { position: absolute; left: 18px; bottom: 14px; font-family: var(--serif); font-size: 0.95rem; color: var(--ink); transition: opacity 0.2s ease; text-shadow: 0 1px 6px #0b0e14; }
+  .stage-cap.swap { opacity: 0; }
+  @media (max-width: 560px) { .stage { height: 300px; } }
+
+  /* features + why */
+  .feat-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+  .feat { padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .feat h3 { font-size: 0.92rem; font-weight: 600; margin: 0 0 4px; color: var(--ink); }
+  .feat p { font-size: 0.82rem; color: var(--muted); margin: 0; line-height: 1.6; }
+  .feat .tag { display: inline-block; font-family: var(--mono); font-size: 0.7rem; color: var(--accent-2); margin-bottom: 6px; }
+  .why-list .why { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .why-list .why:last-child { border-bottom: none; }
+  .why h3 { font-family: var(--serif); font-size: 1.02rem; font-weight: 600; margin: 0 0 6px; color: var(--ink); }
+  .why p { font-size: 0.88rem; color: var(--muted); margin: 0; line-height: 1.7; max-width: 62ch; }
+  .compare { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
+  .compare th, .compare td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .compare th { color: var(--ink); font-weight: 600; }
+  .compare td { color: var(--muted); line-height: 1.5; }
+  .compare td:first-child { color: var(--ink); font-weight: 500; }
+  .table-scroll { overflow-x: auto; }
+  @media (max-width: 640px) { .feat-list { grid-template-columns: 1fr; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill, .run-btn, .finding-detail, .finding-chevron, .panel { transition: none; }
+  }
+
+  @media (max-width: 640px) {
+    .hero { flex-direction: column; align-items: flex-start; }
+    .hero-graphic { max-width: 160px; align-self: center; }
+  }
+  @media (max-width: 560px) {
+    .steps { flex-direction: column; gap: 18px; }
+    .step { padding-right: 0; }
+    .step:not(:last-child)::after { display: none; }
+  }
+  @media (max-width: 480px) {
+    .input-row { flex-direction: column; }
+    .run-btn { width: 100%; }
+    .tablist { overflow-x: auto; }
+  }
+
+  /* product-grade redesign layer */
+  :root {
+    --bg: #07090d;
+    --bg-2: #0b1018;
+    --surface: rgba(17, 23, 34, 0.88);
+    --surface-2: rgba(24, 32, 47, 0.92);
+    --surface-3: rgba(10, 14, 21, 0.74);
+    --border: rgba(125, 145, 180, 0.16);
+    --border-strong: rgba(142, 166, 204, 0.28);
+    --ink: #f4f7fb;
+    --muted: #96a3b8;
+    --muted-2: #69778f;
+    --accent: #78a6ff;
+    --accent-2: #57d6b5;
+    --accent-3: #f4c768;
+    --risk-high: #ff6b61;
+    --risk-medium: #f1bd57;
+    --risk-low: #57d6b5;
+    --shadow: 0 22px 80px rgba(0, 0, 0, 0.42);
+  }
+
+  body {
+    padding: 0 22px 48px;
+    background:
+      radial-gradient(circle at 18% -8%, rgba(120, 166, 255, 0.16), transparent 34%),
+      radial-gradient(circle at 76% 4%, rgba(87, 214, 181, 0.12), transparent 28%),
+      linear-gradient(180deg, #090d13 0%, #07090d 56%, #06070a 100%);
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent 72%);
+  }
+
+  .wrap { max-width: 1180px; padding-top: 24px; }
+  .masthead {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 14px 0 16px;
+    margin-bottom: 18px;
+    backdrop-filter: blur(18px);
+  }
+  .mark {
+    width: 36px;
+    height: 36px;
+    filter: drop-shadow(0 10px 20px rgba(87, 214, 181, 0.18));
+  }
+  .masthead-text h1 { font-family: var(--sans); font-size: 1.02rem; letter-spacing: 0; }
+  .masthead-text p { color: var(--muted-2); }
+
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(420px, 1.08fr);
+    gap: 28px;
+    align-items: stretch;
+    padding: 18px 0 26px;
+    border-bottom: 0;
+    margin-bottom: 12px;
+  }
+  .hero-text {
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 36px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background:
+      linear-gradient(145deg, rgba(20, 27, 40, 0.96), rgba(10, 14, 21, 0.92)),
+      radial-gradient(circle at 20% 20%, rgba(120, 166, 255, 0.12), transparent 34%);
+    box-shadow: var(--shadow);
+  }
+  .eyebrow {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+    color: var(--accent-2);
+    font: 500 0.72rem/1 var(--mono);
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-2);
+    box-shadow: 0 0 20px rgba(87, 214, 181, 0.9);
+  }
+  .hero h2 {
+    font-family: var(--sans);
+    font-size: clamp(2.35rem, 5vw, 4.8rem);
+    line-height: 0.98;
+    letter-spacing: 0;
+    max-width: 10ch;
+    margin-bottom: 20px;
+  }
+  .hero p { font-size: 1rem; max-width: 58ch; color: #b9c2d2; }
+  .chips { margin-top: 10px; }
+  .chip {
+    border-radius: 999px;
+    background: rgba(255,255,255,0.055);
+    border-color: var(--border);
+    color: #dce5f3;
+    padding: 7px 12px;
+  }
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .hero-stat {
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(5, 8, 12, 0.42);
+  }
+  .hero-stat strong { display: block; font-size: 1.35rem; color: var(--ink); }
+  .hero-stat span { display: block; margin-top: 4px; color: var(--muted); font-size: 0.76rem; }
+
+  .stage {
+    height: 100%;
+    min-height: 420px;
+    margin-top: 0;
+    border-radius: 10px;
+    border-color: var(--border-strong);
+    background:
+      linear-gradient(180deg, rgba(14, 20, 30, 0.9), rgba(7, 10, 15, 0.96));
+    box-shadow: var(--shadow);
+  }
+  .stage::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, rgba(120,166,255,0.08), transparent 28%, transparent 72%, rgba(87,214,181,0.08)),
+      repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(255,255,255,0.025) 15px);
+    mix-blend-mode: screen;
+  }
+  .stage-cap {
+    left: 20px;
+    right: 20px;
+    bottom: 18px;
+    width: fit-content;
+    max-width: calc(100% - 40px);
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: rgba(7, 10, 15, 0.7);
+    backdrop-filter: blur(10px);
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: #dbe8ff;
+  }
+
+  .tablist {
+    position: sticky;
+    top: 66px;
+    z-index: 19;
+    gap: 6px;
+    padding: 8px;
+    margin-bottom: 18px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(8, 12, 18, 0.76);
+    backdrop-filter: blur(18px);
+  }
+  .tab {
+    border-radius: 7px;
+    border-bottom: 0;
+    padding: 9px 13px;
+  }
+  .tab[aria-selected="true"] {
+    background: rgba(120, 166, 255, 0.14);
+    color: #f7fbff;
+    border-bottom-color: transparent;
+    box-shadow: inset 0 0 0 1px rgba(120, 166, 255, 0.22);
+  }
+
+  .tabpanel.active { animation: panelIn 0.26s ease both; }
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .scan-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 18px;
+    align-items: stretch;
+  }
+  .panel {
+    border-color: var(--border);
+    background: var(--surface);
+    box-shadow: 0 18px 44px rgba(0,0,0,0.24);
+  }
+  .scan-panel {
+    padding: 0;
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 22px 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.025);
+  }
+  .panel-kicker {
+    color: var(--accent-2);
+    font: 500 0.72rem/1 var(--mono);
+    text-transform: uppercase;
+  }
+  .panel-head h3 {
+    margin: 7px 0 0;
+    font-size: 1.1rem;
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(87, 214, 181, 0.26);
+    background: rgba(87, 214, 181, 0.09);
+    color: #c7ffee;
+    font: 500 0.72rem/1 var(--mono);
+  }
+  .status-badge::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-2);
+    animation: statusPulse 1.8s ease infinite;
+  }
+  @keyframes statusPulse {
+    0%, 100% { opacity: 0.5; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+  .scan-body { padding: 24px; }
+  label { color: #d7deeb; font-size: 0.82rem; }
+  .input-row {
+    flex-wrap: nowrap;
+    align-items: center;
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    padding: 6px;
+    background: rgba(5, 8, 12, 0.62);
+    box-shadow: 6px 6px 0 rgba(120, 166, 255, 0.16);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .input-row:focus-within {
+    border-color: rgba(120, 166, 255, 0.72);
+    box-shadow: 6px 6px 0 rgba(87, 214, 181, 0.18), 0 0 0 3px rgba(120, 166, 255, 0.1);
+  }
+  input[type=text] {
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    padding: 12px 12px;
+  }
+  input[type=text]:focus-visible { outline: none; }
+  .run-btn {
+    border-radius: 7px;
+    border: 0;
+    min-height: 42px;
+    white-space: nowrap;
+    background: linear-gradient(135deg, #78a6ff, #57d6b5);
+    color: #061018;
+    font-weight: 700;
+    box-shadow: 0 14px 28px rgba(87, 214, 181, 0.16);
+  }
+  .run-btn:hover {
+    background: linear-gradient(135deg, #8ab3ff, #66e3c2);
+    transform: translateY(-1px);
+  }
+  .run-btn:active { transform: translateY(0); }
+  .scope-note { font-size: 0.8rem; color: var(--muted); }
+  .link-btn { color: #89ffe1; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .progress-wrap { padding-top: 4px; }
+  .progress-track {
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+  .progress-fill {
+    border-radius: inherit;
+    background: linear-gradient(90deg, #78a6ff, #57d6b5, #f4c768);
+    box-shadow: 0 0 22px rgba(87, 214, 181, 0.28);
+  }
+  .progress-label { font-family: var(--mono); }
+  .scan-aside {
+    display: grid;
+    gap: 12px;
+  }
+  .run-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 18px;
+    padding: 13px 16px;
+    border: 1px solid rgba(244, 199, 104, 0.24);
+    border-radius: 10px;
+    background: linear-gradient(90deg, rgba(244, 199, 104, 0.12), rgba(87, 214, 181, 0.06));
+    color: #dce4f1;
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+  .run-banner b { color: #fff4ca; }
+  .run-banner::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--accent-3);
+    box-shadow: 0 0 18px rgba(244, 199, 104, 0.65);
+    flex: 0 0 auto;
+  }
+  .check-item {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-3);
+  }
+  .check-item b { display: block; color: var(--ink); margin-bottom: 5px; }
+  .check-item span { display: block; color: var(--muted); font-size: 0.8rem; line-height: 1.45; }
+  .preview-card {
+    position: relative;
+    overflow: hidden;
+    padding: 17px;
+    border: 1px solid rgba(120, 166, 255, 0.22);
+    border-radius: 10px;
+    background:
+      linear-gradient(145deg, rgba(120, 166, 255, 0.13), rgba(87, 214, 181, 0.07)),
+      rgba(7, 10, 15, 0.52);
+  }
+  .preview-code {
+    margin: 0 0 12px;
+    padding: 13px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    background: rgba(4, 7, 11, 0.66);
+    color: #c8d3e6;
+    font: 0.72rem/1.55 var(--mono);
+    overflow: hidden;
+  }
+  .preview-code em {
+    color: #fff;
+    font-style: normal;
+    background: rgba(255, 107, 97, 0.82);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  .preview-swap {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    align-items: center;
+  }
+  .preview-swap div {
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+  }
+  .preview-swap b { display: block; color: var(--ink); font-size: 1.25rem; line-height: 1; }
+  .preview-swap span { display: block; margin-top: 4px; color: var(--muted); font-size: 0.68rem; }
+  .preview-swap .arrow {
+    background: transparent;
+    color: var(--accent-2);
+    padding: 0;
+  }
+
+  .results.active {
+    display: grid;
+    gap: 18px;
+    animation: panelIn 0.32s ease both;
+  }
+  .report-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .metric {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(17, 23, 34, 0.78);
+    position: relative;
+    overflow: hidden;
+  }
+  .metric::after {
+    content: "";
+    position: absolute;
+    inset: auto -18px -28px auto;
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    background: rgba(120, 166, 255, 0.13);
+  }
+  .metric span { display: block; color: var(--muted); font-size: 0.74rem; }
+  .metric strong { display: block; margin-top: 5px; font-size: 2.15rem; color: var(--ink); line-height: 1; }
+  .metric.high { border-color: rgba(255,107,97,0.32); background: linear-gradient(145deg, rgba(255,107,97,0.15), rgba(17,23,34,0.8)); }
+  .metric.medium { border-color: rgba(244,199,104,0.34); background: linear-gradient(145deg, rgba(244,199,104,0.15), rgba(17,23,34,0.8)); }
+  .metric.low { border-color: rgba(87,214,181,0.34); background: linear-gradient(145deg, rgba(87,214,181,0.15), rgba(17,23,34,0.8)); }
+  .metric.secret { border-color: rgba(120,166,255,0.32); }
+  .section-title {
+    font-family: var(--sans);
+    font-size: 1rem;
+    letter-spacing: 0;
+  }
+  .summary-panel {
+    border-left: 3px solid var(--accent-2);
+  }
+  .summary-text { color: #dce4f1; }
+  .subtabs {
+    padding: 5px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(5, 8, 12, 0.4);
+    width: fit-content;
+  }
+  .subtab {
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+  }
+  .subtab.active {
+    background: rgba(120, 166, 255, 0.16);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px rgba(120, 166, 255, 0.22);
+  }
+  .finding-row {
+    margin-top: 10px;
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-left-width: 5px;
+    border-radius: 8px;
+    background: rgba(7, 10, 15, 0.42);
+    transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  }
+  .finding-row.high { border-left-color: var(--risk-high); }
+  .finding-row.medium { border-left-color: var(--risk-medium); }
+  .finding-row.low { border-left-color: var(--risk-low); }
+  .finding-row:hover {
+    border-color: var(--border-strong);
+    background: rgba(16, 22, 33, 0.76);
+    transform: translateY(-1px);
+  }
+  .severity-pill { border-radius: 999px; padding: 5px 10px; letter-spacing: 0; }
+  .finding-tags { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  .finding-tag {
+    color: var(--muted);
+    background: rgba(255,255,255,0.055);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    line-height: 1;
+  }
+  .finding-detail-inner .file {
+    width: fit-content;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: rgba(87, 214, 181, 0.08);
+  }
+  .demo-note, .error-note {
+    border-radius: 8px;
+    animation: panelIn 0.22s ease both;
+  }
+  .feat-list { gap: 12px; }
+  .feat {
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(7, 10, 15, 0.38);
+  }
+  .feat .tag {
+    padding: 4px 7px;
+    border-radius: 5px;
+    background: rgba(87, 214, 181, 0.08);
+  }
+  .findings-hint {
+    margin: -3px 0 4px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 900px) {
+    .hero, .scan-grid { grid-template-columns: 1fr; }
+    .hero-text, .stage { min-height: auto; }
+    .stage { height: 360px; }
+    .report-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 560px) {
+    body { padding: 0 14px 34px; }
+    .hero-text { padding: 24px; }
+    .hero h2 { font-size: 2.45rem; }
+    .hero-stats { grid-template-columns: 1fr; }
+    .input-row { flex-direction: column; align-items: stretch; }
+    .tablist { top: 60px; }
+    .report-metrics { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <svg class="mark" width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <path d="M14 2 L25 6.5 V14 C25 20.5 20.5 25 14 26 C7.5 25 3 20.5 3 14 V6.5 Z" stroke="#5b8def" stroke-width="1.5" fill="#11151d"/>
+      <path d="M9.5 14 L12.5 17 L18.5 10.5" stroke="#3fb8a0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+    <div class="masthead-text">
+      <h1>RepoGuard</h1>
+      <p>Automated repository security assessment</p>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-text">
+      <div class="eyebrow">Local static security scan</div>
+      <h2>Find what an attacker would find first, before they do.</h2>
+      <p>RepoGuard checks a public repository for exposed credentials and known dependency vulnerabilities, then produces a short, prioritized report — the kind of review a developer would otherwise skip.</p>
+      <div class="chips">
+        <span class="chip">Read-only clone</span>
+        <span class="chip">Secret detection</span>
+        <span class="chip">Dependency triage</span>
+      </div>
+      <div class="hero-stats" aria-label="RepoGuard scan capabilities">
+        <div class="hero-stat"><strong>0</strong><span>code execution</span></div>
+        <div class="hero-stat"><strong>3</strong><span>severity levels</span></div>
+        <div class="hero-stat"><strong>1</strong><span>paste-to-report flow</span></div>
+      </div>
+    </div>
+    <div class="stage" id="stage" role="img" aria-label="Animation: a brain's neurons become attackers, attack a lock, and the lock becomes a repository that is defended.">
+      <div class="stage-cap" id="stageCap"></div>
+    </div>
+  </div>
+
+  <div class="tablist" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="scan">Scan a repo</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="features">Features</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="why">Why it matters</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="how">How it works</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="methodology">What it checks</button>
+  </div>
+
+  <div class="tabpanel active" id="tab-scan" role="tabpanel">
+    <div class="run-banner"><span><b>Best demo results:</b> use a public repository with a dependency file like <code>package.json</code> or <code>requirements.txt</code>. Repos without manifests still get checked for exposed secrets.</span></div>
+    <div class="scan-grid">
+      <div class="panel scan-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-kicker">Assessment target</div>
+            <h3>Paste a public GitHub repository</h3>
+          </div>
+          <div class="status-badge">Local backend</div>
+        </div>
+        <div class="scan-body">
+          <label for="repoUrl">Repository URL</label>
+          <div class="input-row">
+            <input type="text" id="repoUrl" placeholder="https://github.com/owner/repo" autocomplete="off" spellcheck="false">
+            <button class="run-btn" id="scanBtn">Run assessment</button>
+          </div>
+          <p class="scope-note">Public repositories only. RepoGuard clones a temporary read-only copy, scans text files and dependency manifests, then deletes the clone. <button class="link-btn" id="sampleBtn" type="button">View a sample report</button></p>
+
+          <div class="progress-wrap" id="progressWrap">
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-label" id="progressLabel">Cloning repository…</div>
+          </div>
+
+          <div class="error-note" id="errorNote"></div>
+        </div>
+      </div>
+
+      <div class="scan-aside" aria-label="Assessment coverage">
+        <div class="preview-card" aria-label="Scan preview">
+          <pre class="preview-code">config.js
+apiKey = <em>"AKIA..."</em>
+lodash: 4.17.15</pre>
+          <div class="preview-swap">
+            <div><b>raw</b><span>repo contents</span></div>
+            <div class="arrow">→</div>
+            <div><b>ranked</b><span>fix-first report</span></div>
+          </div>
+        </div>
+        <div class="check-item"><b>Secrets</b><span>AWS keys, GitHub tokens, private keys, Slack tokens, Stripe keys, password-like values.</span></div>
+        <div class="check-item"><b>Dependencies</b><span>Checks npm and Python manifests against a hackathon-ready built-in advisory baseline.</span></div>
+        <div class="check-item"><b>Report</b><span>Ranks issues by severity and gives a plain-language remediation path.</span></div>
+      </div>
+    </div>
+
+    <div class="results" id="results">
+      <div class="demo-note" id="demoNote" role="status"></div>
+      <div class="report-metrics" id="reportMetrics" aria-label="Scan result counts"></div>
+      <div class="panel summary-panel">
+        <div class="section-title">Executive summary</div>
+        <div class="summary-text" id="summaryText"></div>
+      </div>
+
+      <div class="panel">
+        <div class="section-title">Findings</div>
+        <div class="subtabs" id="subtabs">
+          <button class="subtab active" data-filter="all">Overview</button>
+          <button class="subtab" data-filter="secret">Secrets</button>
+          <button class="subtab" data-filter="dependency">Dependencies</button>
+        </div>
+        <p class="findings-hint">Click a finding to see the affected file, why it matters, and the recommended fix.</p>
+        <div id="findingsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabpanel" id="tab-features" role="tabpanel">
+    <div class="panel">
+      <div class="section-title">What RepoGuard does</div>
+      <div class="feat-list">
+        <div class="feat"><span class="tag">gitleaks</span><h3>Secret detection</h3><p>Finds exposed API keys, tokens, passwords and private keys committed to a repository.</p></div>
+        <div class="feat"><span class="tag">npm audit · pip-audit</span><h3>Dependency vulnerability audit</h3><p>Checks third-party packages against known CVE databases so outdated, vulnerable libraries are flagged before they ship.</p></div>
+        <div class="feat"><span class="tag">AI triage</span><h3>Severity ranking</h3><p>Every finding is rated high, medium or low, so you know what to fix first instead of facing a flat list of alerts.</p></div>
+        <div class="feat"><span class="tag">AI triage</span><h3>Plain-language explanations</h3><p>Each finding says what the problem is, why it matters, and a concrete recommended fix a developer can act on right away.</p></div>
+        <div class="feat"><span class="tag">Report</span><h3>Filterable findings</h3><p>Switch between secrets and dependencies, and expand any finding to see the affected file, explanation and fix.</p></div>
+        <div class="feat"><span class="tag">Read-only</span><h3>Safe by design</h3><p>Uses a shallow, read-only copy of a public repository. Nothing is executed and nothing is attacked.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabpanel" id="tab-why" role="tabpanel">
+    <div class="panel why-list">
+      <div class="why"><h3>Established scanners do the detection</h3><p>Detection is done by well-known, deterministic tools, so results are repeatable and not an AI guess. The AI only explains and prioritizes what those tools found.</p></div>
+      <div class="why"><h3>The AI reads findings, not your code</h3><p>The model receives a short, structured list of findings rather than the whole repository. That keeps cost low, keeps the report focused, and limits how much of your source is ever sent to a model.</p></div>
+      <div class="why"><h3>Built for the people who skip security reviews</h3><p>Small teams and solo developers rarely have time for a full audit. RepoGuard gives them a prioritized report in one step, with fixes they can apply the same day.</p></div>
+      <div class="why"><h3>Honest about its scope</h3><p>This is automated static analysis (secret detection and dependency scanning), not a penetration test. We say so in the product, along with its known limitations, because trust in a security tool starts with accurate claims.</p></div>
+    </div>
+    <div class="panel">
+      <div class="section-title">How it compares</div>
+      <div class="table-scroll">
+        <table class="compare">
+          <thead><tr><th></th><th>Running scanners yourself</th><th>Asking an AI to read the repo</th><th>RepoGuard</th></tr></thead>
+          <tbody>
+            <tr><td>Reliable detection</td><td>Yes</td><td>Inconsistent</td><td>Yes, via the scanners</td></tr>
+            <tr><td>Prioritized, explained results</td><td>Raw output to interpret</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Cost to analyze</td><td>Free</td><td>High, scales with repo size</td><td>Low, scales with findings</td></tr>
+            <tr><td>Setup effort</td><td>Install and configure each tool</td><td>Upload or paste code</td><td>Paste a repository URL</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabpanel" id="tab-how" role="tabpanel">
+    <div class="panel">
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Clone</h3>
+          <p>A shallow, read-only copy of the public repository is pulled for analysis.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Scan</h3>
+          <p>Established scanners check for leaked secrets and vulnerable dependencies.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>Report</h3>
+          <p>Findings are ranked by severity and explained in plain language.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabpanel" id="tab-methodology" role="tabpanel">
+    <div class="panel methodology">
+      <h3>What this checks</h3>
+      <p>RepoGuard runs two categories of automated static analysis: secret detection (via gitleaks) and software composition analysis (via npm audit / pip-audit) against known CVE databases. It does not execute the application or attempt exploitation — this is not a penetration test.</p>
+      <h3>Why AI is used</h3>
+      <p>The scanners above do all the detection work, deterministically and for free. The one AI call reasons over a short, structured list of findings — not the raw repository — to rank severity, explain risk in plain language, and suggest fixes. That is why this uses a small fraction of the tokens an approach that asked an AI to read the whole repository would need.</p>
+      <h3>Known limitations</h3>
+      <p>Secret detection carries known false-positive and false-negative tradeoffs inherent to the underlying tool. This prototype does not check GitHub Actions configuration, repository settings, or source code patterns beyond dependency and secret scanning. It does not replace a professional security audit.</p>
+    </div>
+  </div>
+
+  <footer>RepoGuard is a hackathon prototype. It does not replace a professional security audit.</footer>
+
+</div>
+
+<script>
+// Backend endpoint. Run `npm start` and open http://localhost:5001 to perform real scans.
+// Keep demo mode off for the hackathon project; use "View a sample report" for the canned demo.
+const DEMO_MODE = false;
+const HOSTED_API = ""; // set to your deployed backend, e.g. "https://your-backend.example.com/scan"
+const API_URL = location.port === "5001" ? "/scan" : (HOSTED_API || "http://127.0.0.1:5001/scan");
+
+// Clearly labelled sample data, shown only when requested or when the backend can't be reached
+const SAMPLE_REPORT = {
+  summary: "Sample report. This repository exposes one live-looking cloud credential and uses two dependencies with known vulnerabilities. The credential should be revoked first, because anyone who can read the repository can use it. The dependency issues can be fixed with version upgrades.",
+  findings: [
+    { severity: "high", category: "secret", title: "AWS access key committed to source", file: "config/settings.py:14", explanation: "A string matching the AWS access key format was found in a tracked file. Anyone with read access to the repository can attempt to use it, and it remains in git history after deletion.", fix: "Revoke the key in AWS now, create a new one, load it from an environment variable or secrets manager, and review access logs for misuse." },
+    { severity: "medium", category: "dependency", title: "lodash 4.17.15: prototype pollution (CVE-2020-8203)", file: "package.json", explanation: "This version of lodash allows an attacker to modify object prototypes through crafted input, which can lead to unexpected behavior or denial of service.", fix: "Upgrade lodash to 4.17.21 or later and re-run the audit." },
+    { severity: "medium", category: "dependency", title: "requests 2.19.0: credential leak on redirect (CVE-2018-18074)", file: "requirements.txt", explanation: "Older versions of requests can send an Authorization header to a different host after a redirect.", fix: "Upgrade requests to 2.20.0 or later." },
+    { severity: "low", category: "secret", title: "Possible hard-coded password in test fixture", file: "tests/fixtures/db.json:3", explanation: "A password-like value was found in test data. It is likely a placeholder, but it is worth confirming it is not reused anywhere real.", fix: "Replace with an obviously fake value or load test credentials from the environment." }
+  ]
+};
+
+// top-level tabs
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', 'false'));
+    tab.setAttribute('aria-selected', 'true');
+    document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+let lastFindings = [];
+let currentFilter = 'all';
+
+document.querySelectorAll('.subtab').forEach(st => {
+  st.addEventListener('click', () => {
+    document.querySelectorAll('.subtab').forEach(s => s.classList.remove('active'));
+    st.classList.add('active');
+    currentFilter = st.dataset.filter;
+    renderFindingsList(lastFindings);
+  });
+});
+
+const input = document.getElementById('repoUrl');
+const btn = document.getElementById('scanBtn');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const errorNote = document.getElementById('errorNote');
+const results = document.getElementById('results');
+
+if (location.protocol === 'file:') {
+  errorNote.textContent = 'RepoGuard is open as a local HTML file. To run real scans, start the backend with npm start and open http://127.0.0.1:5001 instead.';
+  errorNote.classList.add('active');
+}
+
+document.getElementById('sampleBtn').addEventListener('click', () => {
+  errorNote.classList.remove('active');
+  renderReport(SAMPLE_REPORT, 'Sample report with example findings. This is not a scan of a real repository.');
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+input.addEventListener('keydown', e => { if (e.key === 'Enter') scanRepo(); });
+btn.addEventListener('click', scanRepo);
+
+const STEPS = [
+  { pct: 20, label: 'Cloning repository…' },
+  { pct: 45, label: 'Scanning for exposed credentials…' },
+  { pct: 70, label: 'Auditing dependencies…' },
+  { pct: 92, label: 'Analyzing findings…' },
+];
+
+async function scanRepo() {
+  const repoUrl = input.value.trim();
+  errorNote.classList.remove('active');
+  results.classList.remove('active');
+
+  if (!isValidGithubRepoUrl(repoUrl)) {
+    errorNote.textContent = 'Enter a valid public GitHub repository URL, e.g. https://github.com/owner/repo';
+    errorNote.classList.add('active');
+    return;
+  }
+
+  btn.disabled = true;
+  input.disabled = true;
+  progressWrap.classList.add('active');
+  progressFill.style.width = '0%';
+
+  for (const step of STEPS) {
+    progressFill.style.width = step.pct + '%';
+    progressLabel.textContent = step.label;
+    await sleep(500);
+  }
+
+  if (DEMO_MODE) {
+    renderReport(SAMPLE_REPORT, 'Demo mode: these are example findings, not a scan of the repository you entered.');
+    btn.disabled = false; input.disabled = false; progressWrap.classList.remove('active');
+    return;
+  }
+
+  let res;
+  try {
+    res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo_url: repoUrl })
+    });
+  } catch (netErr) {
+    // fetch itself failed: server not running, wrong URL/port, CORS, or mixed content
+    console.error('RepoGuard: could not reach', API_URL, netErr);
+    const backendHint = location.protocol === 'file:'
+      ? 'RepoGuard was opened as a file. Start the backend with npm start, then open http://127.0.0.1:5001 for real scans.'
+      : 'Could not reach the scan backend at ' + API_URL + '. Make sure npm start is running.';
+    renderReport(SAMPLE_REPORT, backendHint + ' This is sample data, not a scan of the repository you entered.');
+    btn.disabled = false; input.disabled = false; progressWrap.classList.remove('active');
+    return;
+  }
+
+  try {
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Assessment failed (HTTP ' + res.status + ').');
+
+    progressFill.style.width = '100%';
+    await sleep(200);
+    renderReport(data, 'Real scan completed for ' + repoUrl + '.');
+  } catch (err) {
+    console.error('RepoGuard: backend responded but the result could not be shown', err);
+    errorNote.textContent = 'Error: ' + err.message;
+    errorNote.classList.add('active');
+  } finally {
+    btn.disabled = false;
+    input.disabled = false;
+    progressWrap.classList.remove('active');
+  }
+}
+
+// Fallback so the Secrets / Dependencies tabs work even if the backend omits "category"
+function inferCategory(f) {
+  const hay = ((f.file || '') + ' ' + (f.title || '')).toLowerCase();
+  if (/package(-lock)?\.json|requirements|pipfile|poetry|yarn\.lock|cve-|npm|pip-audit|dependenc/.test(hay)) return 'dependency';
+  return 'secret';
+}
+
+function renderReport(data, demoMessage) {
+  const demoNote = document.getElementById('demoNote');
+  demoNote.textContent = demoMessage || '';
+  demoNote.classList.toggle('active', !!demoMessage);
+  results.classList.add('active');
+  lastFindings = (data.findings || []).map(f => ({ ...f, category: f.category || inferCategory(f) }));
+  currentFilter = 'all';
+  document.querySelectorAll('.subtab').forEach(s => s.classList.remove('active'));
+  document.querySelector('.subtab[data-filter="all"]').classList.add('active');
+
+  document.getElementById('summaryText').textContent = data.summary || 'Assessment complete.';
+  renderMetrics(lastFindings);
+
+  if (data.tool_errors && data.tool_errors.length) {
+    const note = data.tool_errors.map(e => `${e.tool}: ${e.error}`).join(' · ');
+    errorNote.textContent = 'Some scanners could not run — ' + note;
+    errorNote.classList.add('active');
+  }
+
+  renderFindingsList(lastFindings);
+}
+
+function renderMetrics(findings) {
+  const metrics = document.getElementById('reportMetrics');
+  const counts = {
+    total: findings.length,
+    secrets: findings.filter(f => f.category === 'secret').length,
+    dependencies: findings.filter(f => f.category === 'dependency').length,
+    high: findings.filter(f => f.severity === 'high').length,
+    medium: findings.filter(f => f.severity === 'medium').length,
+    low: findings.filter(f => f.severity === 'low').length
+  };
+  metrics.innerHTML = `
+    <div class="metric"><span>Total findings</span><strong>${counts.total}</strong></div>
+    <div class="metric high"><span>High risk</span><strong>${counts.high}</strong></div>
+    <div class="metric secret"><span>Secrets</span><strong>${counts.secrets}</strong></div>
+    <div class="metric low"><span>Dependencies</span><strong>${counts.dependencies}</strong></div>
+  `;
+}
+
+function renderFindingsList(findings) {
+  const list = document.getElementById('findingsList');
+  list.innerHTML = '';
+
+  const filtered = currentFilter === 'all' ? findings : findings.filter(f => f.category === currentFilter);
+
+  if (!filtered || filtered.length === 0) {
+    list.innerHTML = '<div class="clean-state">No issues in this category.</div>';
+    return;
+  }
+
+  const order = { high: 0, medium: 1, low: 2 };
+  const sorted = [...filtered].sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));
+
+  sorted.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'finding-row ' + (f.severity || 'low');
+    row.tabIndex = 0;
+    const tags = [
+      f.category === 'dependency' ? 'dependency' : 'secret',
+      f.severity ? f.severity + ' risk' : 'info'
+    ];
+    row.innerHTML = `
+      <div class="finding-top">
+        <span class="severity-pill ${f.severity || 'low'}">${escapeHtml((f.severity || 'info').toUpperCase())}</span>
+        <span class="finding-title">${escapeHtml(f.title || 'Finding')}</span>
+        <span class="finding-tags">${tags.map(tag => `<span class="finding-tag">${escapeHtml(tag)}</span>`).join('')}</span>
+        <span class="finding-chevron">›</span>
+      </div>
+      <div class="finding-detail">
+        <div class="finding-detail-inner">
+          ${f.file ? `<div class="file">${escapeHtml(f.file)}</div>` : ''}
+          <div>${escapeHtml(f.explanation || '')}</div>
+          <div class="fix"><b>Recommended fix:</b> ${escapeHtml(f.fix || 'No fix suggested.')}</div>
+        </div>
+      </div>
+    `;
+    row.addEventListener('click', () => row.classList.toggle('open'));
+    row.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); row.classList.toggle('open'); }
+    });
+    list.appendChild(row);
+  });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function isValidGithubRepoUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.hostname === 'github.com' && parsed.pathname.split('/').filter(Boolean).length === 2;
+  } catch {
+    return false;
+  }
+}
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  const stage = document.getElementById('stage'), cap = document.getElementById('stageCap');
+  if (!window.THREE || !stage) { if (stage) stage.style.display = 'none'; return; }
+  const T = THREE, V = (x, y, z) => new T.Vector3(x, y, z), L = 24;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const sm = (a, b, t) => { const x = clamp((t - a) / (b - a)); return x * x * (3 - 2 * x); };
+  const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+  const TEAL = new T.Color('#3fb8a0'), RED = new T.Color('#e5534b'), IND = new T.Color('#5b8def');
+
+  const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.outputEncoding = T.sRGBEncoding; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+  stage.insertBefore(renderer.domElement, stage.firstChild);
+  const scene = new T.Scene(); scene.fog = new T.Fog(0x0d111a, 13, 27);
+  const cam = new T.PerspectiveCamera(38, 2, 0.1, 100);
+
+  // studio-style reflections so metal reads as metal
+  const envS = new T.Scene(); envS.background = new T.Color(0x1a2030);
+  [[0, 6, 4, 6, 1], [-6, 2, -3, 2, 2], [6, 3, -4, 3, 3]].forEach(b => {
+    const m = new T.Mesh(new T.BoxGeometry(b[3], 0.4, b[3]), new T.MeshBasicMaterial({ color: 0xffffff }));
+    m.position.set(b[0], b[1], b[2]); m.scale.setScalar(b[4]); envS.add(m);
+  });
+  scene.environment = new T.PMREMGenerator(renderer).fromScene(envS, 0.04).texture;
+  scene.add(new T.HemisphereLight(0x8aa0d0, 0x10131a, 0.5));
+  const key = new T.DirectionalLight(0xfff2e0, 1.2); key.position.set(4, 8, 6); key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024); Object.assign(key.shadow.camera, { left: -9, right: 9, top: 6, bottom: -6, near: 1, far: 25 });
+  scene.add(key);
+  const rim = new T.DirectionalLight(0x5b8def, 0.7); rim.position.set(-5, 3, -6); scene.add(rim);
+  const hitLight = new T.PointLight(0xe5534b, 0, 6); scene.add(hitLight);
+
+  const ground = new T.Mesh(new T.PlaneGeometry(60, 30), new T.MeshStandardMaterial({ color: 0x131824, roughness: 0.9, metalness: 0 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -1.2; ground.receiveShadow = true; scene.add(ground);
+  const grid = new T.GridHelper(40, 80, 0x252d3d, 0x1a2130); grid.position.y = -1.195; grid.material.transparent = true; scene.add(grid);
+
+  // ---- brain: anatomical shell + internal neural network ----
+  const brain = new T.Group(); brain.position.set(-3.4, 0.2, 0); scene.add(brain);
+  const shellG = new T.IcosahedronGeometry(1, 4), pa = shellG.attributes.position;
+  for (let i = 0; i < pa.count; i++) {
+    let x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i);
+    const n = Math.sin(7 * x + 3 * Math.sin(5 * y)) + Math.sin(6 * z + 2 * Math.cos(4 * x)) + Math.sin(9 * y + 4 * z);
+    let r = 1 + 0.035 * n;
+    if (Math.abs(x) < 0.14 && y > -0.3) r -= (0.14 - Math.abs(x)) * 1.1;
+    pa.setXYZ(i, x * r * 1.0, y * r * 0.85, z * r * 1.3);
+  }
+  shellG.computeVertexNormals();
+  const shellM = new T.MeshStandardMaterial({ color: 0x8a97c4, roughness: 0.3, metalness: 0.15, transparent: true, opacity: 0.3, depthWrite: false });
+  brain.add(new T.Mesh(shellG, shellM));
+  const pts = [];
+  for (let i = 0; i < 140; i++) {
+    const u = hash(i * 3 + 1) * 2 - 1, a = hash(i * 3 + 2) * 6.2832, r = Math.sqrt(1 - u * u), k = 0.55 + 0.35 * hash(i * 5 + 4);
+    pts.push(V(Math.cos(a) * r * k + Math.sign(Math.cos(a)) * 0.06, u * 0.8 * k, Math.sin(a) * r * 1.2 * k));
+  }
+  const edges = [], lp = [];
+  pts.forEach((p, i) => pts.map((q, j) => [p.distanceTo(q), j]).filter(d => d[1] !== i && d[0] < 0.55)
+    .sort((a, b) => a[0] - b[0]).slice(0, 3).forEach(d => { const q = pts[d[1]]; edges.push([i, d[1]]); lp.push(p.x, p.y, p.z, q.x, q.y, q.z); }));
+  const lg = new T.BufferGeometry(); lg.setAttribute('position', new T.Float32BufferAttribute(lp, 3));
+  const lines = new T.LineSegments(lg, new T.LineBasicMaterial({ color: IND, transparent: true, opacity: 0.55 }));
+  const dg = new T.BufferGeometry(); dg.setFromPoints(pts);
+  const dots = new T.Points(dg, new T.PointsMaterial({ color: 0xcfe0ff, size: 0.05, transparent: true }));
+  brain.add(lines, dots);
+  const neuG = new T.SphereGeometry(0.075, 12, 10), neuLocal = [], neu = [];
+  for (let k = 0; k < 18; k++) { const p = pts[k * 7], n = new T.Mesh(neuG, new T.MeshBasicMaterial({ color: 0x9fd8ff })); n.position.copy(p); brain.add(n); neuLocal.push(p); neu.push(n); }
+  const pulseG = new T.SphereGeometry(0.04, 8, 8), pulses = [];
+  for (let j = 0; j < 12; j++) { const m = new T.Mesh(pulseG, new T.MeshBasicMaterial({ color: 0xffffff })); brain.add(m); pulses.push(m); }
+
+  // ---- articulated soldiers ----
+  const gear = new T.MeshStandardMaterial({ color: 0x2d333f, roughness: 0.75, metalness: 0.1 }),
+    gear2 = new T.MeshStandardMaterial({ color: 0x1b2029, roughness: 0.8, metalness: 0.1 }),
+    skin = new T.MeshStandardMaterial({ color: 0x6b5a50, roughness: 0.9 }), sol = [];
+  const G = { leg: new T.CylinderGeometry(0.055, 0.045, 0.4, 8), boot: new T.BoxGeometry(0.16, 0.07, 0.09), torso: new T.BoxGeometry(0.2, 0.34, 0.3),
+    plate: new T.BoxGeometry(0.06, 0.24, 0.24), head: new T.SphereGeometry(0.075, 12, 10), helm: new T.SphereGeometry(0.095, 12, 10, 0, 6.2832, 0, 1.9),
+    visor: new T.BoxGeometry(0.03, 0.025, 0.11), arm: new T.CylinderGeometry(0.04, 0.035, 0.3, 8), rifle: new T.BoxGeometry(0.55, 0.05, 0.05), muz: new T.SphereGeometry(0.07, 8, 8) };
+  function makeSoldier() {
+    const g = new T.Group(), accent = new T.MeshStandardMaterial({ color: 0x111111, emissive: RED, emissiveIntensity: 1.6 });
+    const part = (geo, mat, x, y, z, p) => { const m = new T.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; (p || g).add(m); return m; };
+    const leg = z => { const p = new T.Group(); p.position.set(0, 0.42, z); g.add(p); part(G.leg, gear2, 0, -0.21, 0, p); part(G.boot, gear, 0.03, -0.4, 0, p); return p; };
+    const legs = [leg(0.07), leg(-0.07)];
+    const body = new T.Group(); g.add(body);
+    part(G.torso, gear, 0, 0.62, 0, body); part(G.plate, gear2, 0.1, 0.64, 0, body); part(G.visor, accent, 0.1, 0.7, 0, body);
+    part(G.head, skin, 0, 0.84, 0, body); part(G.helm, gear2, 0, 0.86, 0, body); part(G.visor, accent, 0.075, 0.85, 0, body);
+    [0.18, -0.18].forEach(z => { const p = new T.Group(); p.position.set(0.02, 0.76, z); p.rotation.z = 1.3; body.add(p); part(G.arm, gear, 0, -0.15, 0, p); });
+    part(G.rifle, gear2, 0.3, 0.64, 0.1, body);
+    const muz = new T.Mesh(G.muz, new T.MeshBasicMaterial({ color: 0xffd9a0 })); muz.position.set(0.6, 0.64, 0.1); muz.scale.setScalar(0.001); body.add(muz);
+    g.visible = false; scene.add(g); return { g, legs, body, accent, muz };
+  }
+  for (let i = 0; i < 18; i++) sol.push(makeSoldier());
+
+  // ---- padlock ----
+  const LC = V(3.4, -0.5, 0);
+  function rrect(w, h, r) { const s = new T.Shape(), x = -w / 2, y = -h / 2; s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s; }
+  const lock = new T.Group(); scene.add(lock);
+  const lmat = new T.MeshStandardMaterial({ color: 0xaab3c8, metalness: 0.85, roughness: 0.32, emissive: 0x000000 });
+  const bg = new T.ExtrudeGeometry(rrect(1.0, 0.8, 0.12), { depth: 0.3, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 3 });
+  bg.translate(0, 0, -0.15);
+  const sh = new T.Group(), tor = new T.Mesh(new T.TorusGeometry(0.27, 0.065, 12, 28, Math.PI), lmat);
+  [-0.27, 0.27].forEach(x => { const l = new T.Mesh(new T.CylinderGeometry(0.065, 0.065, 0.16, 12), lmat); l.position.set(x, -0.08, 0); sh.add(l); });
+  sh.add(tor); sh.position.y = 0.4;
+  const hole = new T.Mesh(new T.CylinderGeometry(0.06, 0.06, 0.4, 12), new T.MeshBasicMaterial({ color: 0x05070a })); hole.rotation.x = Math.PI / 2; hole.position.y = 0.04;
+  const slot = new T.Mesh(new T.BoxGeometry(0.05, 0.22, 0.4), new T.MeshBasicMaterial({ color: 0x05070a })); slot.position.y = -0.1;
+  [new T.Mesh(bg, lmat), sh, hole, slot].forEach(o => { o.castShadow = true; lock.add(o); });
+
+  // ---- repository (generic file/commit glyph) ----
+  const repo = new T.Group(); scene.add(repo);
+  const rcard = new T.Mesh(new T.BoxGeometry(1.1, 1.4, 0.14), new T.MeshStandardMaterial({ color: 0x1a2130, metalness: 0.4, roughness: 0.45 })); rcard.castShadow = true; repo.add(rcard);
+  repo.add(new T.LineSegments(new T.EdgesGeometry(rcard.geometry), new T.LineBasicMaterial({ color: TEAL })));
+  [0.45, 0.28, 0.11].forEach((y, k) => { const w = 0.75 - k * 0.15, m = new T.Mesh(new T.BoxGeometry(w, 0.05, 0.02), new T.MeshBasicMaterial({ color: IND })); m.position.set(-0.4 + w / 2, y, 0.08); repo.add(m); });
+  [[-0.25, -0.2], [-0.25, -0.5], [0.15, -0.35]].forEach(n => { const m = new T.Mesh(new T.SphereGeometry(0.06, 10, 8), new T.MeshBasicMaterial({ color: TEAL })); m.position.set(n[0], n[1], 0.08); repo.add(m); });
+  const bl = new T.BufferGeometry(); bl.setAttribute('position', new T.Float32BufferAttribute([-0.25, -0.2, 0.08, -0.25, -0.5, 0.08, -0.25, -0.2, 0.08, 0.15, -0.35, 0.08], 3));
+  repo.add(new T.LineSegments(bl, new T.LineBasicMaterial({ color: TEAL })));
+
+  // ---- shield, shockwave, tracers, sparks ----
+  const domeG = new T.SphereGeometry(2.1, 32, 16, 0, 6.2832, 0, Math.PI / 2), dome = new T.Group(); dome.position.set(LC.x, -1.2, 0); scene.add(dome);
+  const wireM = new T.MeshBasicMaterial({ color: TEAL, transparent: true, opacity: 0.1, wireframe: true }),
+    fillM = new T.MeshBasicMaterial({ color: TEAL, transparent: true, opacity: 0.05, side: T.DoubleSide, depthWrite: false });
+  dome.add(new T.Mesh(domeG, wireM), new T.Mesh(domeG, fillM));
+  const ring = new T.Mesh(new T.RingGeometry(0.9, 0.95, 64), new T.MeshBasicMaterial({ color: TEAL, transparent: true, side: T.DoubleSide })); ring.position.copy(LC); scene.add(ring);
+  const trG = new T.BoxGeometry(0.4, 0.022, 0.022), tr = [];
+  for (let j = 0; j < 22; j++) { const m = new T.Mesh(trG, new T.MeshBasicMaterial({ color: 0xff8a5c })); m.visible = false; scene.add(m); tr.push(m); }
+  const NS = 22 * 3, sArr = new Float32Array(NS * 3), sAttr = new T.BufferAttribute(sArr, 3), sg = new T.BufferGeometry(); sg.setAttribute('position', sAttr);
+  scene.add(new T.Points(sg, new T.PointsMaterial({ color: 0xffc27a, size: 0.06, transparent: true, opacity: 0.9 })));
+
+  function endFor(j, k, atk) {
+    if (atk) return { e: V(LC.x - 0.55, LC.y + (hash(j * 5 + k) - 0.5) * 0.6, (hash(j * 3 + k * 7) - 0.5) * 0.4), n: V(-1, 0.2, 0) };
+    const az = hash(j * 13 + k) * 6.2832, el = 0.2 + hash(j * 7 + k * 3), d = V(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el));
+    return { e: V(LC.x, -1.2, 0).add(d.clone().multiplyScalar(2.1)), n: d, d };
+  }
+
+  let camZ = 8.6;
+  function frame(t) {
+    const ang = t / L * 6.2832;
+    const m = sm(5, 7.5, t) * (1 - sm(21.5, 24, t)), adv = sm(7.5, 11, t), q = sm(15, 17.5, t);
+    const lockS = sm(7.5, 9, t) * (1 - sm(15, 16.2, t)), repoS = sm(16, 17.5, t) * (1 - sm(21.5, 23, t));
+    const brainA = 1 - sm(5, 7, t) + sm(22, 24, t), march = sm(5, 7.5, t) * (1 - sm(10.5, 11.5, t));
+    const atkI = sm(9.5, 10.5, t) * (1 - sm(14, 15, t)), secure = sm(14, 15.5, t);
+
+    brain.rotation.y = ang; brain.updateMatrixWorld();
+    shellM.opacity = 0.3 * brainA; lines.material.opacity = 0.55 * brainA; dots.material.opacity = brainA;
+    neu.forEach(n => n.scale.setScalar(Math.max(0.001, 1 - m)));
+    pulses.forEach((p, j) => { const c = t * 0.8 + j * 0.37, e = edges[Math.floor(hash(j * 7 + Math.floor(c)) * edges.length)];
+      p.position.lerpVectors(pts[e[0]], pts[e[1]], c % 1); p.scale.setScalar(Math.max(0.001, brainA)); });
+
+    sol.forEach((s, i) => {
+      const col = i % 3, row = (i / 3) | 0, th = i / 18 * 6.2832 + t * 0.12;
+      const atk = V(1.0 + col * 0.55 - 4 * (1 - adv), -1.2, (row - 2.5) * 0.55), def = V(LC.x + 1.9 * Math.cos(th), -1.2, 1.9 * Math.sin(th));
+      s.g.position.copy(brain.localToWorld(neuLocal[i].clone())).lerp(atk.lerp(def, q), m);
+      const w = Math.sin(t * 7 + i * 1.3) * 0.55 * march;
+      s.legs[0].rotation.z = w; s.legs[1].rotation.z = -w;
+      s.body.position.y = 0.025 * Math.abs(Math.sin(t * 7 + i * 1.3)) * march + 0.008 * Math.sin(t * 1.6 + i) * q;
+      s.g.rotation.y = Math.atan2(Math.sin(-th), Math.cos(-th)) * q;
+      s.g.scale.setScalar(Math.max(0.001, m)); s.g.visible = m > 0.01;
+      s.accent.emissive.copy(RED).lerp(TEAL, q); s.muz.scale.setScalar(0.001);
+    });
+
+    lock.visible = lockS > 0.01; lock.scale.setScalar(Math.max(0.001, lockS));
+    lock.position.set(LC.x + atkI * 0.012 * Math.sin(t * 53), LC.y, 0);
+    lmat.emissive.copy(RED).multiplyScalar(0.25 * atkI * (0.6 + 0.4 * Math.sin(t * 9))).add(new T.Color().copy(TEAL).multiplyScalar(0.3 * secure));
+    hitLight.position.set(LC.x - 1, LC.y + 0.3, 0.5); hitLight.intensity = 2 * atkI * (0.6 + 0.4 * Math.sin(t * 11));
+
+    let flash = 0;
+    tr.forEach((p, j) => {
+      const c = t * 1.1 + j * 0.29, ph = c % 1, k = Math.floor(c), inA = t > 10 && t < 15, inD = t > 17.5 && t < 21.5;
+      p.visible = false;
+      for (let s = 0; s < 3; s++) { const o = (j * 3 + s) * 3; sArr[o] = 0; sArr[o + 1] = -50; sArr[o + 2] = 0; }
+      if (!inA && !inD) return;
+      const cur = endFor(j, k, inA), prev = endFor(j, k - 1, inA);
+      let from;
+      if (inA) { const so = sol[j % 18]; from = so.g.position.clone().add(V(0.6, 0.7, 0.1)); so.muz.scale.setScalar(ph < 0.07 ? 1.2 * (1 - ph / 0.07) + 0.001 : 0.001); }
+      else from = V(LC.x, -1.2, 0).add(cur.d.clone().multiplyScalar(5.5));
+      const target = cur.e, pos = from.clone().lerp(target, Math.min(1, ph * 1.02)), dir = target.clone().sub(from).normalize();
+      p.position.copy(pos); p.quaternion.setFromUnitVectors(V(1, 0, 0), dir); p.visible = ph < 0.98;
+      if (inD) flash = Math.max(flash, ph < 0.2 ? 1 - ph / 0.2 : 0);
+      if (ph < 0.3) for (let s = 0; s < 3; s++) {
+        const o = (j * 3 + s) * 3, a = ph, r1 = hash(j * 11 + s + k * 3) - 0.5, r2 = hash(j * 17 + s * 5 + k) - 0.2, r3 = hash(j * 23 + s * 3) - 0.5;
+        sArr[o] = prev.e.x + (prev.n.x * 1.2 + r1) * a; sArr[o + 1] = prev.e.y + (prev.n.y * 1.2 + r2 * 2) * a - 3 * a * a; sArr[o + 2] = prev.e.z + (prev.n.z * 1.2 + r3) * a;
+      }
+    });
+    sAttr.needsUpdate = true;
+
+    repo.visible = repoS > 0.01; repo.scale.setScalar(Math.max(0.001, repoS));
+    repo.position.set(LC.x, LC.y + 0.05 * Math.sin(t * 1.5), 0);
+    repo.rotation.y = (1 - sm(16, 17.5, t)) * 6.2832 + Math.sin(t * 0.5) * 0.3;
+    dome.visible = repoS > 0.01; dome.scale.setScalar(Math.max(0.001, repoS));
+    wireM.opacity = 0.1 + 0.45 * flash; fillM.opacity = 0.05 + 0.14 * flash;
+    const rp = sm(16, 17.6, t); ring.visible = t > 16 && t < 17.8; ring.scale.setScalar(1 + rp * 3.5); ring.material.opacity = 0.5 * (1 - rp); ring.quaternion.copy(cam.quaternion);
+    grid.visible = m > 0.01; grid.material.opacity = 0.6 * m; ground.material.opacity = 1;
+
+    const push = sm(8, 12, t) * (1 - sm(18, 22, t));
+    cam.position.set(Math.sin(ang) * 0.7 + push * 1.0, 1.6 - 0.2 * push, camZ * (1 - 0.1 * push)); cam.lookAt(push * 1.0, -0.25, 0);
+    setCap(t < 5 || t >= 21.5 ? 'Threats begin as ideas.' : t < 9 ? 'Attackers organize.' : t < 15 ? 'They probe for exposed secrets and weak dependencies.' : t < 17.5 ? 'RepoGuard assesses the repository.' : 'Findings prioritized. Repository defended.');
+  }
+
+  let lastCap = '';
+  function setCap(c) { if (c === lastCap) return; const first = !lastCap; lastCap = c; if (first) { cap.textContent = c; return; }
+    cap.classList.add('swap'); setTimeout(() => { cap.textContent = c; cap.classList.remove('swap'); }, 200); }
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+    renderer.setSize(w, h, false); cam.aspect = w / h; camZ = Math.max(8.6, 19.5 / (w / h)); cam.updateProjectionMatrix();
+    if (reduce) { frame(19); renderer.render(scene, cam); }
+  }
+  new ResizeObserver(resize).observe(stage); resize();
+  if (reduce) { frame(19); renderer.render(scene, cam); return; }
+  let visible = true; const t0 = performance.now();
+  new IntersectionObserver(e => { visible = e[0].isIntersecting; }).observe(stage);
+  (function loop(now) { requestAnimationFrame(loop); if (!visible) return; frame(((now - t0) / 1000) % L); renderer.render(scene, cam); })(t0);
+})();
+</script>
+</body>
+</html>
