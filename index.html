@@ -1064,7 +1064,7 @@ lodash: 4.17.15</pre>
 // Backend endpoint. Run `npm start` and open http://localhost:5001 to perform real scans.
 // Keep demo mode off for the hackathon project; use "View a sample report" for the canned demo.
 const DEMO_MODE = false;
-const HOSTED_API = ""; // set to your deployed backend, e.g. "https://your-backend.example.com/scan"
+const HOSTED_API = "https://repoguard-hia9.onrender.com/scan"; // deployed backend
 const API_URL = location.port === "5001" ? "/scan" : (HOSTED_API || "http://127.0.0.1:5001/scan");
 
 // Clearly labelled sample data, shown only when requested or when the backend can't be reached
@@ -1108,7 +1108,7 @@ const progressLabel = document.getElementById('progressLabel');
 const errorNote = document.getElementById('errorNote');
 const results = document.getElementById('results');
 
-if (location.protocol === 'file:') {
+if (location.protocol === 'file:' && !HOSTED_API) {
   errorNote.textContent = 'RepoGuard is open as a local HTML file. To run real scans, start the backend with npm start and open http://127.0.0.1:5001 instead.';
   errorNote.classList.add('active');
 }
@@ -1167,7 +1167,7 @@ async function scanRepo() {
   } catch (netErr) {
     // fetch itself failed: server not running, wrong URL/port, CORS, or mixed content
     console.error('RepoGuard: could not reach', API_URL, netErr);
-    const backendHint = location.protocol === 'file:'
+    const backendHint = location.protocol === 'file:' && !HOSTED_API
       ? 'RepoGuard was opened as a file. Start the backend with npm start, then open http://127.0.0.1:5001 for real scans.'
       : 'Could not reach the scan backend at ' + API_URL + '. Make sure npm start is running.';
     renderReport(SAMPLE_REPORT, backendHint + ' This is sample data, not a scan of the repository you entered.');
